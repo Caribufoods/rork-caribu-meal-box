@@ -1,0 +1,25 @@
+# Build the first version of the Caribu food box ordering app
+
+- **Features**
+  - [x] Browse a polished menu split into starters, mains, and sides.
+  - [x] Build a food box with 1 starter, 1 main, and 1 side as the default flow.
+  - [x] Choose between medium and large portion sizes with clear gram and calorie details.
+  - [x] Omit the starter and swap that value into a larger main or side portion.
+  - [x] Add customized boxes to a cart and review a clean checkout-style summary.
+  - [x] Enter delivery or pickup details before confirming the order.
+  - [x] Show a final order screen with a scannable QR code for the business to process.
+- **Design**
+  - [x] Earthy premium visual style with warm food-led surfaces, soft textures, and an elegant mobile feel.
+  - [x] Posh Caribu brand palette built around deep green and rich yellow taken from the supplied logo, with warm cream surfaces for contrast.
+  - [x] Large food imagery, refined cards, rounded controls, and strong spacing that feels like a modern hospitality app.
+  - [x] Smooth micro-interactions on taps, quantity changes, and box customization to make the ordering flow feel alive.
+  - [x] Home branding updated to feature the supplied Caribu logo artwork and a more luxury green-and-gold presentation.
+- **Pages / Screens**
+  - [x] Home screen with the Caribu brand, featured food box intro, and quick entry into the menu.
+  - [x] Menu screen with sections for starters, mains, and sides plus rich item cards.
+  - [x] Box builder screen where customers pick size, see grams and calories, and choose whether to omit the starter for a larger main or side.
+  - [x] Cart screen showing selected items, box rules, totals, and edit actions.
+  - [x] Details screen for delivery or pickup information.
+  - [x] Confirmation screen with order summary and a QR code for collection or fulfilment.
+- **App icon**
+  - [x] App icon with a deep green background, a clean white food box symbol, and a refined premium feel that matches the Caribu brand.
