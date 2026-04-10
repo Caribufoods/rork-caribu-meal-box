@@ -1,0 +1,160 @@
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  transition: background var(--transition-slow), box-shadow var(--transition-slow), backdrop-filter var(--transition-slow);
+  background: transparent;
+}
+
+.header.solid {
+  background: rgba(27, 67, 50, 0.97);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 72px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.logoMark {
+  width: 36px;
+  height: 36px;
+  background: var(--gold);
+  color: var(--charcoal);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.logoText {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--cream);
+  letter-spacing: 0.02em;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.navLink {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(253, 248, 240, 0.85);
+  letter-spacing: 0.02em;
+  transition: color var(--transition);
+  text-decoration: none;
+}
+
+.navLink:hover {
+  color: var(--gold);
+}
+
+.cartBtn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(212, 168, 83, 0.15);
+  color: var(--gold);
+  transition: background var(--transition);
+  text-decoration: none;
+}
+
+.cartBtn:hover {
+  background: rgba(212, 168, 83, 0.28);
+}
+
+.badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  background: var(--gold);
+  color: var(--charcoal);
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menuToggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--cream);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.mobileMenu {
+  background: var(--forest-dark);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobileLink {
+  padding: 14px 24px;
+  font-size: 15px;
+  font-weight: 500;
+  color: rgba(253, 248, 240, 0.85);
+  text-decoration: none;
+  transition: color var(--transition), background var(--transition);
+}
+
+.mobileLink:hover {
+  color: var(--gold);
+  background: rgba(255,255,255,0.05);
+}
+
+.mobileLinkCart {
+  padding: 14px 24px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--gold);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .nav {
+    display: none;
+  }
+
+  .menuToggle {
+    display: flex;
+  }
+}
