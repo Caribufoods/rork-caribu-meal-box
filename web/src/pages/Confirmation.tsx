@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { CheckCircle, Package, ArrowRight, Clock } from 'lucide-react';
+import { CircleCheck as CheckCircle, Package, ArrowRight, Clock } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import styles from './Confirmation.module.css';
 
