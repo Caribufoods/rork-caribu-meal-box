@@ -1,15 +1,143 @@
 import { useRouter } from 'expo-router';
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Check, ChevronRight, RefreshCw, Zap } from 'lucide-react-native';
+import { Check, ChevronRight, Info, RefreshCw, Zap } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
+
 import { caribuTheme } from '@/constants/caribu-theme';
 import { useCaribu } from '@/providers/caribu-provider';
-import { MenuCategory } from '@/types/caribu';
+import { MenuCategory, MenuItem } from '@/types/caribu';
+import ItemDetailSheet from '@/components/ItemDetailSheet';
 
 const categories: MenuCategory[] = ['starters', 'mains', 'sides'];
 const categoryLabels: Record<MenuCategory, string> = { starters: 'Starter', mains: 'Main', sides: 'Side' };
+
+const STEPS = [
+  { key: 'size', label: 'Size' },
+  { key: 'starters', label: 'Starter' },
+  { key: 'mains', label: 'Main' },
+  { key: 'sides', label: 'Side' },
+] as const;
+
+function ProgressBar({ selection }: { selection: { sizeId: string; starterId?: string; mainId: string; sideId: string; omitStarter: boolean } }) {
+  const completedSteps = useMemo(() => {
+    let count = 0;
+    if (selection.sizeId) count++;
+    if (selection.omitStarter || selection.starterId) count++;
+    if (selection.mainId) count++;
+    if (selection.sideId) count++;
+    return count;
+  }, [selection]);
+
+  const progressAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(progressAnim, {
+      toValue: completedSteps / STEPS.length,
+      friction: 12,
+      tension: 60,
+      useNativeDriver: false,
+    }).start();
+  }, [completedSteps, progressAnim]);
+
+  const progressWidth = progressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
+
+  return (
+    <View style={progressStyles.container}>
+      <View style={progressStyles.stepsRow}>
+        {STEPS.map((step, index) => {
+          const isComplete =
+            (step.key === 'size' && !!selection.sizeId) ||
+            (step.key === 'starters' && (selection.omitStarter || !!selection.starterId)) ||
+            (step.key === 'mains' && !!selection.mainId) ||
+            (step.key === 'sides' && !!selection.sideId);
+
+          return (
+            <View key={step.key} style={progressStyles.stepItem}>
+              <View style={[progressStyles.stepDot, isComplete && progressStyles.stepDotComplete]}>
+                {isComplete ? (
+                  <Check color={caribuTheme.white} size={10} />
+                ) : (
+                  <Text style={progressStyles.stepNum}>{index + 1}</Text>
+                )}
+              </View>
+              <Text style={[progressStyles.stepLabel, isComplete && progressStyles.stepLabelComplete]}>
+                {step.key === 'starters' && selection.omitStarter ? 'Skipped' : step.label}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+      <View style={progressStyles.barTrack}>
+        <Animated.View style={[progressStyles.barFill, { width: progressWidth }]} />
+      </View>
+    </View>
+  );
+}
+
+const progressStyles = StyleSheet.create({
+  container: {
+    gap: 12,
+    backgroundColor: caribuTheme.surface,
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: caribuTheme.line,
+  },
+  stepsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  stepItem: {
+    alignItems: 'center',
+    gap: 4,
+    flex: 1,
+  },
+  stepDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: caribuTheme.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: caribuTheme.line,
+  },
+  stepDotComplete: {
+    backgroundColor: caribuTheme.forest,
+    borderColor: caribuTheme.forest,
+  },
+  stepNum: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: caribuTheme.muted,
+  },
+  stepLabel: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: caribuTheme.muted,
+    letterSpacing: 0.2,
+  },
+  stepLabelComplete: {
+    color: caribuTheme.forest,
+  },
+  barTrack: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: caribuTheme.card,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: caribuTheme.forest,
+  },
+});
 
 export default function BuilderScreen() {
   const router = useRouter();
@@ -32,6 +160,9 @@ export default function BuilderScreen() {
     cartCount,
   } = useCaribu();
 
+  const [detailItem, setDetailItem] = useState<MenuItem | null>(null);
+  const [detailCategory, setDetailCategory] = useState<MenuCategory | null>(null);
+
   const groupedItems = useMemo(() => {
     return categories.map((category) => ({
       category,
@@ -40,9 +171,49 @@ export default function BuilderScreen() {
   }, [menuItems]);
 
   const handleAddToCart = useCallback(() => {
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     addCurrentBoxToCart();
     router.push('/cart');
   }, [addCurrentBoxToCart, router]);
+
+  const handleSizeSelect = useCallback((sizeId: 'medium' | 'large') => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    chooseSize(sizeId);
+  }, [chooseSize]);
+
+  const handleItemSelect = useCallback((category: MenuCategory, itemId: string) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    selectItem(category, itemId);
+  }, [selectItem]);
+
+  const handleToggleOmit = useCallback((omit: boolean) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setStarterOmission(omit);
+  }, [setStarterOmission]);
+
+  const handleBoostTarget = useCallback((target: 'main' | 'side') => {
+    void Haptics.selectionAsync();
+    chooseBoostTarget(target);
+  }, [chooseBoostTarget]);
+
+  const handleOpenDetail = useCallback((item: MenuItem, category: MenuCategory) => {
+    void Haptics.selectionAsync();
+    setDetailItem(item);
+    setDetailCategory(category);
+  }, []);
+
+  const handleSheetSelect = useCallback(() => {
+    if (detailItem && detailCategory) {
+      handleItemSelect(detailCategory, detailItem.id);
+    }
+  }, [detailItem, detailCategory, handleItemSelect]);
+
+  const isDetailSelected = useMemo(() => {
+    if (!detailItem || !detailCategory) return false;
+    if (detailCategory === 'starters') return selection.starterId === detailItem.id && !selection.omitStarter;
+    if (detailCategory === 'mains') return selection.mainId === detailItem.id;
+    return selection.sideId === detailItem.id;
+  }, [detailItem, detailCategory, selection]);
 
   const footerScale = useRef(new Animated.Value(1)).current;
 
@@ -57,6 +228,8 @@ export default function BuilderScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ProgressBar selection={selection} />
+
         <View style={styles.sizeSection}>
           <Text style={styles.sectionLabel}>Portion size</Text>
           <View style={styles.sizeRow}>
@@ -65,7 +238,7 @@ export default function BuilderScreen() {
               return (
                 <Pressable
                   key={item.id}
-                  onPress={() => chooseSize(item.id)}
+                  onPress={() => handleSizeSelect(item.id)}
                   style={[styles.sizeCard, selected && styles.sizeCardActive]}
                   testID={`size-${item.id}`}
                 >
@@ -100,7 +273,7 @@ export default function BuilderScreen() {
               return (
                 <Pressable
                   key={`${value}`}
-                  onPress={() => setStarterOmission(value)}
+                  onPress={() => handleToggleOmit(value)}
                   style={[styles.toggleBtn, active && styles.toggleBtnActive]}
                   testID={value ? 'omit-starter-on' : 'omit-starter-off'}
                 >
@@ -119,7 +292,7 @@ export default function BuilderScreen() {
                 return (
                   <Pressable
                     key={target}
-                    onPress={() => chooseBoostTarget(target)}
+                    onPress={() => handleBoostTarget(target)}
                     style={[styles.boostChip, active && styles.boostChipActive]}
                     testID={`boost-${target}`}
                   >
@@ -158,7 +331,8 @@ export default function BuilderScreen() {
                 return (
                   <Pressable
                     key={item.id}
-                    onPress={() => selectItem(group.category, item.id)}
+                    onPress={() => handleItemSelect(group.category, item.id)}
+                    onLongPress={() => handleOpenDetail(item, group.category)}
                     style={({ pressed }) => [
                       styles.itemCard,
                       selected && styles.itemCardSelected,
@@ -180,7 +354,7 @@ export default function BuilderScreen() {
                           </View>
                         )}
                       </View>
-                      <Text style={styles.itemDesc} numberOfLines={1}>{item.description}</Text>
+                      <Text style={styles.itemDesc} numberOfLines={2}>{item.description}</Text>
                       {isBoosted && (
                         <Text style={styles.boostDetail}>+25% portion · +£{boostSurcharge.toFixed(2)}</Text>
                       )}
@@ -193,6 +367,15 @@ export default function BuilderScreen() {
                           <Text style={[styles.itemPrice, isBoosted && styles.itemPriceBoosted]}>£{displayPrice.toFixed(2)}</Text>
                         </View>
                       </View>
+                      <Pressable
+                        onPress={() => handleOpenDetail(item, group.category)}
+                        style={styles.infoBtn}
+                        hitSlop={8}
+                        testID={`info-${item.id}`}
+                      >
+                        <Info size={13} color={caribuTheme.muted} />
+                        <Text style={styles.infoBtnText}>Details</Text>
+                      </Pressable>
                     </View>
                     {selected ? (
                       <View style={[styles.selectedDot, isBoosted && styles.selectedDotBoosted]}>
@@ -231,6 +414,14 @@ export default function BuilderScreen() {
           <ChevronRight color={caribuTheme.white} size={16} />
         </Pressable>
       </Animated.View>
+
+      <ItemDetailSheet
+        item={detailItem}
+        visible={!!detailItem}
+        onClose={() => setDetailItem(null)}
+        onSelect={handleSheetSelect}
+        isSelected={isDetailSelected}
+      />
     </SafeAreaView>
   );
 }
@@ -427,8 +618,8 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   itemImage: {
-    width: 100,
-    height: 100,
+    width: 120,
+    height: 130,
   },
   itemCardBoosted: {
     borderColor: '#C9A96E',
@@ -510,6 +701,18 @@ const styles = StyleSheet.create({
   },
   itemPriceBoosted: {
     color: '#C9A96E',
+  },
+  infoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+    alignSelf: 'flex-start',
+  },
+  infoBtnText: {
+    color: caribuTheme.muted,
+    fontSize: 11,
+    fontWeight: '500' as const,
   },
   selectedDot: {
     position: 'absolute',

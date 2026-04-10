@@ -56,6 +56,7 @@ function RootLayoutNav() {
       <Stack.Screen name="details" options={{ headerTitle: () => <HeaderLogo /> }} />
       <Stack.Screen name="confirmation" options={{ headerTitle: () => <HeaderLogo />, headerBackVisible: false }} />
       <Stack.Screen name="promotions" options={{ headerTitle: () => <HeaderLogo /> }} />
+      <Stack.Screen name="order-history" options={{ headerTitle: () => <HeaderLogo /> }} />
       <Stack.Screen name="sign-in" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="sign-up" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="privacy-policy" options={{ headerShown: false, presentation: 'modal' }} />

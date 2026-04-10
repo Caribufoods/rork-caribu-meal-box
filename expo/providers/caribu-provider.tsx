@@ -51,6 +51,7 @@ export const [CaribuProvider, useCaribu] = createContextHook(() => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [details, setDetails] = useState<CustomerDetails>(defaultDetails);
   const [lastOrder, setLastOrder] = useState<OrderSummary | null>(null);
+  const [orderHistory, setOrderHistory] = useState<OrderSummary[]>([]);
 
   const size = useMemo(() => portionSizes.find((item) => item.id === selection.sizeId) ?? portionSizes[0], [selection.sizeId]);
   const starter = useMemo(
@@ -157,6 +158,7 @@ export const [CaribuProvider, useCaribu] = createContextHook(() => {
     console.log('[Caribu] Submitting order', summary);
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setLastOrder(summary);
+    setOrderHistory((current) => [summary, ...current]);
     setCart([]);
   }, [cartCount, cartTotal]);
 
@@ -180,6 +182,7 @@ export const [CaribuProvider, useCaribu] = createContextHook(() => {
       cartTotal,
       details,
       lastOrder,
+      orderHistory,
       selectItem,
       chooseSize,
       setStarterOmission,
@@ -202,6 +205,7 @@ export const [CaribuProvider, useCaribu] = createContextHook(() => {
       currentUnitPrice,
       details,
       lastOrder,
+      orderHistory,
       main,
       removeItem,
       selectItem,

@@ -10,8 +10,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowRight, ChefHat, Menu, Package, ShoppingBag, Utensils } from 'lucide-react-native';
+import { ArrowRight, ChefHat, Clock, Menu, Package, ShoppingBag, Utensils } from 'lucide-react-native';
 import { Image } from 'expo-image';
+import * as Haptics from 'expo-haptics';
 
 import { caribuTheme } from '@/constants/caribu-theme';
 import { useCaribu } from '@/providers/caribu-provider';
@@ -23,10 +24,11 @@ const logoImage = 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachmen
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { size, starter, main, side, cartCount, boxStarted } = useCaribu();
+  const { size, starter, main, side, cartCount, boxStarted, orderHistory } = useCaribu();
   const fadeIn = useRef(new Animated.Value(0)).current;
   const slideUp = useRef(new Animated.Value(30)).current;
   const cardScale = useRef(new Animated.Value(0.96)).current;
+  const scrollY = useRef(new Animated.Value(0)).current;
   const [drawerOpen, setDrawerOpen] = React.useState<boolean>(false);
 
   useEffect(() => {
@@ -43,14 +45,59 @@ export default function HomeScreen() {
     return [starter?.name ?? 'Starter', main?.name ?? 'Main', side?.name ?? 'Side'].join(' · ');
   }, [main?.name, side?.name, starter?.name]);
 
+  const heroTranslateY = scrollY.interpolate({
+    inputRange: [-100, 0, 200],
+    outputRange: [-30, 0, 40],
+    extrapolate: 'clamp',
+  });
+
+  const heroScale = scrollY.interpolate({
+    inputRange: [-200, 0],
+    outputRange: [1.3, 1],
+    extrapolate: 'clamp',
+  });
+
+  const handleHamburger = React.useCallback(() => {
+    void Haptics.selectionAsync();
+    setDrawerOpen(true);
+  }, []);
+
+  const handleCartPress = React.useCallback(() => {
+    void Haptics.selectionAsync();
+    router.push('/cart');
+  }, [router]);
+
+  const handleBuildPress = React.useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push('/builder');
+  }, [router]);
+
+  const handleMenuPress = React.useCallback(() => {
+    void Haptics.selectionAsync();
+    router.push('/menus');
+  }, [router]);
+
+  const handleHistoryPress = React.useCallback(() => {
+    void Haptics.selectionAsync();
+    router.push('/order-history');
+  }, [router]);
+
   return (
     <View style={styles.screen}>
       <SafeAreaView edges={['top']} style={styles.safeArea}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <Animated.ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.content}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
+          scrollEventThrottle={16}
+        >
           <Animated.View style={{ opacity: fadeIn, transform: [{ translateY: slideUp }] }}>
             <View style={styles.topBar}>
               <Pressable
-                onPress={() => setDrawerOpen(true)}
+                onPress={handleHamburger}
                 style={({ pressed }) => [styles.hamburgerBtn, pressed && styles.pressed]}
                 testID="home-hamburger-button"
               >
@@ -60,7 +107,7 @@ export default function HomeScreen() {
                 <Image source={{ uri: logoImage }} style={styles.logo} contentFit="contain" transition={200} />
               </View>
               <Pressable
-                onPress={() => router.push('/cart')}
+                onPress={handleCartPress}
                 style={({ pressed }) => [styles.cartButton, pressed && styles.pressed]}
                 testID="home-cart-button"
               >
@@ -75,7 +122,9 @@ export default function HomeScreen() {
           </Animated.View>
 
           <Animated.View style={[styles.heroContainer, { opacity: fadeIn, transform: [{ scale: cardScale }] }]}>
-            <Image source={{ uri: heroImage }} style={styles.heroImage} contentFit="cover" transition={400} />
+            <Animated.View style={[styles.heroImageWrap, { transform: [{ translateY: heroTranslateY }, { scale: heroScale }] }]}>
+              <Image source={{ uri: heroImage }} style={styles.heroImage} contentFit="cover" transition={400} />
+            </Animated.View>
             <LinearGradient
               colors={['transparent', 'rgba(0,0,0,0.7)']}
               style={styles.heroOverlay}
@@ -94,7 +143,7 @@ export default function HomeScreen() {
           <Animated.View style={[styles.ctaRow, { opacity: fadeIn, transform: [{ translateY: slideUp }] }]}>
             <Pressable
               accessibilityRole="button"
-              onPress={() => router.push('/builder')}
+              onPress={handleBuildPress}
               style={({ pressed }) => [styles.primaryCta, pressed && styles.pressed]}
               testID="home-build-button"
             >
@@ -108,7 +157,7 @@ export default function HomeScreen() {
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              onPress={() => router.push('/menus')}
+              onPress={handleMenuPress}
               style={({ pressed }) => [styles.secondaryCta, pressed && styles.pressed]}
               testID="home-menu-button"
             >
@@ -169,7 +218,42 @@ export default function HomeScreen() {
               <Text style={styles.emptyBoxSub}>Tap "Start Building" to create your first box.</Text>
             </View>
           )}
-        </ScrollView>
+
+          {orderHistory.length > 0 && (
+            <>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={styles.sectionLabel}>Recent orders</Text>
+                  <Pressable onPress={handleHistoryPress} hitSlop={8}>
+                    <Text style={styles.seeAllText}>See all</Text>
+                  </Pressable>
+                </View>
+              </View>
+
+              <View style={styles.recentOrdersContainer}>
+                {orderHistory.slice(0, 2).map((order) => (
+                  <Pressable
+                    key={order.reference}
+                    onPress={handleHistoryPress}
+                    style={({ pressed }) => [styles.recentOrderCard, pressed && styles.pressed]}
+                    testID={`recent-order-${order.reference}`}
+                  >
+                    <View style={styles.recentOrderLeft}>
+                      <View style={styles.recentOrderIcon}>
+                        <Clock color={caribuTheme.forest} size={16} />
+                      </View>
+                      <View style={styles.recentOrderInfo}>
+                        <Text style={styles.recentOrderRef}>{order.reference}</Text>
+                        <Text style={styles.recentOrderMeta}>{order.itemCount} {order.itemCount === 1 ? 'box' : 'boxes'} · {order.createdAt}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.recentOrderTotal}>£{order.total.toFixed(2)}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          )}
+        </Animated.ScrollView>
       </SafeAreaView>
       <DrawerMenu
         visible={drawerOpen}
@@ -218,7 +302,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-
   logo: {
     width: 120,
     height: 36,
@@ -253,6 +336,9 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
     height: 280,
+  },
+  heroImageWrap: {
+    ...StyleSheet.absoluteFillObject,
   },
   heroImage: {
     ...StyleSheet.absoluteFillObject,
@@ -352,12 +438,22 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     marginHorizontal: 20,
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   sectionLabel: {
     color: caribuTheme.muted,
     fontSize: 13,
     fontWeight: '600' as const,
     textTransform: 'uppercase' as const,
     letterSpacing: 1.5,
+  },
+  seeAllText: {
+    color: caribuTheme.forest,
+    fontSize: 13,
+    fontWeight: '600' as const,
   },
   stepsContainer: {
     marginHorizontal: 20,
@@ -467,6 +563,53 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center' as const,
     lineHeight: 19,
+  },
+  recentOrdersContainer: {
+    marginHorizontal: 20,
+    gap: 10,
+  },
+  recentOrderCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: caribuTheme.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: caribuTheme.line,
+  },
+  recentOrderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  recentOrderIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: caribuTheme.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recentOrderInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  recentOrderRef: {
+    color: caribuTheme.ink,
+    fontSize: 15,
+    fontWeight: '700' as const,
+    letterSpacing: -0.2,
+  },
+  recentOrderMeta: {
+    color: caribuTheme.muted,
+    fontSize: 12,
+  },
+  recentOrderTotal: {
+    color: caribuTheme.forest,
+    fontSize: 16,
+    fontWeight: '700' as const,
   },
   pressed: {
     opacity: 0.88,
