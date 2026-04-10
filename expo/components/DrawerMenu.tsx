@@ -37,6 +37,7 @@ import * as Haptics from 'expo-haptics';
 
 import { caribuTheme } from '@/constants/caribu-theme';
 import { useAuth } from '@/providers/auth-provider';
+import { useAdmin } from '@/providers/admin-provider';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(SCREEN_WIDTH * 0.82, 340);
@@ -76,6 +77,7 @@ export default function DrawerMenu({ visible, onClose, onNavigate }: DrawerMenuP
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const { user, isLoggedIn, signOut, deleteAccount } = useAuth();
+  const { isAdminEmail } = useAdmin();
   const [notificationsEnabled, setNotificationsEnabled] = React.useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = React.useState(false);
   const [showSettings, setShowSettings] = React.useState(false);
@@ -298,15 +300,19 @@ export default function DrawerMenu({ visible, onClose, onNavigate }: DrawerMenuP
               />
             </View>
 
-            <View style={styles.divider} />
+            {isAdminEmail && (
+              <>
+                <View style={styles.divider} />
 
-            <View style={styles.navSection}>
-              <DrawerItem
-                icon={<Shield color={caribuTheme.forest} size={20} />}
-                label="Admin Dashboard"
-                onPress={() => handleNav('/admin')}
-              />
-            </View>
+                <View style={styles.navSection}>
+                  <DrawerItem
+                    icon={<Shield color={caribuTheme.forest} size={20} />}
+                    label="Admin Dashboard"
+                    onPress={() => handleNav('/admin')}
+                  />
+                </View>
+              </>
+            )}
 
             {isLoggedIn && (
               <>

@@ -10,6 +10,7 @@ import type { AdminUser, AdminOrder, AdminStats } from '@/types/admin';
 const ADMIN_USERS_KEY = 'caribu_admin_users';
 const ADMIN_ORDERS_KEY = 'caribu_admin_orders';
 const ADMIN_PIN = '1234';
+const ADMIN_EMAIL = 'laneworth.kinuthia@outlook.com';
 
 async function fetchUsersFromSupabase(): Promise<AdminUser[] | null> {
   try {
@@ -199,14 +200,22 @@ export const [AdminProvider, useAdmin] = createContextHook(() => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  const isAdminEmail = useMemo(() => {
+    return user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  }, [user?.email]);
+
   const authenticateAdmin = useCallback((pin: string): boolean => {
     console.log('[Admin] Attempting admin authentication');
+    if (!isAdminEmail) {
+      console.log('[Admin] Access denied: not admin email');
+      return false;
+    }
     if (pin === ADMIN_PIN) {
       setIsAdminAuthenticated(true);
       return true;
     }
     return false;
-  }, []);
+  }, [isAdminEmail]);
 
   const logoutAdmin = useCallback(() => {
     setIsAdminAuthenticated(false);
@@ -330,6 +339,7 @@ export const [AdminProvider, useAdmin] = createContextHook(() => {
   return useMemo(
     () => ({
       isAdminAuthenticated,
+      isAdminEmail,
       users,
       orders,
       stats,
@@ -344,6 +354,7 @@ export const [AdminProvider, useAdmin] = createContextHook(() => {
     }),
     [
       isAdminAuthenticated,
+      isAdminEmail,
       users,
       orders,
       stats,

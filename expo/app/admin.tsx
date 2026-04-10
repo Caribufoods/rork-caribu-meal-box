@@ -121,10 +121,36 @@ function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label:
   );
 }
 
+function AccessDenied({ onBack }: { onBack: () => void }) {
+  return (
+    <SafeAreaView style={loginStyles.container}>
+      <View style={loginStyles.lockIcon}>
+        <Lock color={caribuTheme.error} size={32} />
+      </View>
+      <Text style={loginStyles.title}>Access Denied</Text>
+      <Text style={loginStyles.subtitle}>This area is restricted to authorized administrators only.</Text>
+      <Pressable
+        onPress={onBack}
+        style={({ pressed }) => [{
+          marginTop: 28,
+          backgroundColor: caribuTheme.forest,
+          paddingVertical: 14,
+          paddingHorizontal: 32,
+          borderRadius: 12,
+          opacity: pressed ? 0.85 : 1,
+        }]}
+      >
+        <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' as const }}>Go Back</Text>
+      </Pressable>
+    </SafeAreaView>
+  );
+}
+
 export default function AdminScreen() {
   const router = useRouter();
   const {
     isAdminAuthenticated,
+    isAdminEmail,
     users,
     orders,
     stats,
@@ -222,6 +248,10 @@ export default function AdminScreen() {
     { id: 'orders', label: 'Orders', icon: <ShoppingBag color={activeTab === 'orders' ? caribuTheme.white : caribuTheme.muted} size={16} /> },
     { id: 'promos', label: 'Promos', icon: <Tag color={activeTab === 'promos' ? caribuTheme.white : caribuTheme.muted} size={16} /> },
   ];
+
+  if (!isAdminEmail) {
+    return <AccessDenied onBack={() => router.back()} />;
+  }
 
   if (!isAdminAuthenticated) {
     return (
