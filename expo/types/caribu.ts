@@ -57,8 +57,12 @@ export interface CustomerDetails {
 }
 
 export interface OrderSummary {
+  id: string;
   reference: string;
   itemCount: number;
   total: number;
+  discountApplied: number;
+  promoCode: string | null;
+  status: string;
   createdAt: string;
 }

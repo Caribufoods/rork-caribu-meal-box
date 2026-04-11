@@ -6,11 +6,15 @@ import { MapPin, Truck } from 'lucide-react-native';
 
 import { caribuTheme } from '@/constants/caribu-theme';
 import { useCaribu } from '@/providers/caribu-provider';
+import { useAuth } from '@/providers/auth-provider';
+import { usePromotions } from '@/providers/promotions-provider';
 import type { CustomerDetails } from '@/types/caribu';
 
 export default function DetailsScreen() {
   const router = useRouter();
-  const { cart, details, updateDetails, submitOrder } = useCaribu();
+  const { cart, cartTotal, details, updateDetails, submitOrder } = useCaribu();
+  const { isLoggedIn, user } = useAuth();
+  const { selectedPromotion, markPromoUsed } = usePromotions();
   const [form, setForm] = useState<CustomerDetails>(details);
 
   const addressRequired = useMemo(() => form.fulfilment === 'delivery', [form.fulfilment]);
@@ -27,7 +31,20 @@ export default function DetailsScreen() {
     }
 
     updateDetails(form);
-    submitOrder();
+
+    let discountAmount = 0;
+    let promoCode: string | null = null;
+    if (selectedPromotion) {
+      discountAmount = cartTotal * (selectedPromotion.discountPercent / 100);
+      promoCode = selectedPromotion.code;
+    }
+
+    submitOrder(discountAmount, promoCode);
+
+    if (selectedPromotion && isLoggedIn) {
+      void markPromoUsed(selectedPromotion.id);
+    }
+
     router.push('/confirmation');
   };
 

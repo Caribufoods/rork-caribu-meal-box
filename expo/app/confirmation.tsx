@@ -61,13 +61,20 @@ export default function ConfirmationScreen() {
           </Animated.View>
           <Text style={styles.successTitle}>Order Confirmed</Text>
           <Text style={styles.successSub}>Your Caribu box is being prepared.</Text>
+          {lastOrder?.promoCode && (
+            <Text style={styles.promoApplied}>Promo applied: {lastOrder.promoCode}</Text>
+          )}
         </View>
 
         <Animated.View style={[styles.referenceCard, { opacity: contentFade, transform: [{ translateY: contentSlide }] }]}>
           <Text style={styles.referenceLabel}>Order Reference</Text>
           <Text style={styles.referenceValue}>{lastOrder?.reference ?? 'CAR-000000'}</Text>
           <View style={styles.referenceMeta}>
-            <Text style={styles.referenceMetaText}>Placed at {lastOrder?.createdAt ?? '--:--'}</Text>
+            <Text style={styles.referenceMetaText}>
+              {lastOrder?.createdAt
+                ? new Date(lastOrder.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : '--:--'}
+            </Text>
             <View style={styles.referenceDot} />
             <Text style={styles.referenceMetaText}>{details.fulfilment}</Text>
           </View>
@@ -93,6 +100,12 @@ export default function ConfirmationScreen() {
               : `Your box will be ready for pickup. We'll contact ${details.phone || 'you'} when it's ready.`}
           </Text>
           <View style={styles.infoDivider} />
+          {(lastOrder?.discountApplied ?? 0) > 0 && (
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>Discount</Text>
+              <Text style={styles.discountValue}>-£{(lastOrder?.discountApplied ?? 0).toFixed(2)}</Text>
+            </View>
+          )}
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total</Text>
             <Text style={styles.totalValue}>£{lastOrder?.total.toFixed(2) ?? '0.00'}</Text>
@@ -270,6 +283,17 @@ const styles = StyleSheet.create({
     color: caribuTheme.forest,
     fontSize: 20,
     fontWeight: '700' as const,
+  },
+  discountValue: {
+    color: caribuTheme.forest,
+    fontSize: 16,
+    fontWeight: '600' as const,
+  },
+  promoApplied: {
+    color: caribuTheme.forest,
+    fontSize: 13,
+    fontWeight: '600' as const,
+    marginTop: 2,
   },
   footer: {
     position: 'absolute',

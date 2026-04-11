@@ -1,7 +1,11 @@
 import createContextHook from '@nkzw/create-context-hook';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/providers/auth-provider';
 import { menuItems, portionSizes } from '@/mocks/caribu-menu';
 import { BoxSelection, CartItem, CustomerDetails, MenuCategory, OrderSummary } from '@/types/caribu';
 
@@ -27,6 +31,100 @@ const defaultDetails: CustomerDetails = {
 };
 
 const BOOST_SURCHARGE = 2.5;
+const ORDER_HISTORY_KEY = 'caribu_order_history';
+
+async function syncOrderToSupabase(
+  order: OrderSummary,
+  userId: string,
+  userName: string,
+  userEmail: string,
+  discountApplied: number,
+  promoCode: string | null,
+): Promise<void> {
+  try {
+    const { error } = await supabase.from('orders').upsert({
+      id: order.id,
+      user_id: userId,
+      user_name: userName,
+      user_email: userEmail,
+      reference: order.reference,
+      item_count: order.itemCount,
+      total: order.total,
+      discount_applied: discountApplied,
+      promo_code: promoCode,
+      status: order.status ?? 'pending',
+      created_at: order.createdAt,
+    }, { onConflict: 'id' });
+    if (error) {
+      console.log('[Caribu] Supabase order sync error:', error.message);
+    } else {
+      console.log('[Caribu] Order synced to Supabase:', order.reference);
+    }
+  } catch (e) {
+    console.log('[Caribu] Supabase order sync failed:', e);
+  }
+}
+
+async function updateProfileStatsInSupabase(
+  userId: string,
+  orderTotal: number,
+): Promise<void> {
+  try {
+    const { data, error: fetchError } = await supabase
+      .from('profiles')
+      .select('order_count, total_spent')
+      .eq('id', userId)
+      .single();
+    if (fetchError) {
+      console.log('[Caribu] Profile stats fetch error:', fetchError.message);
+      return;
+    }
+    const currentCount = (data?.order_count as number) ?? 0;
+    const currentSpent = Number(data?.total_spent) || 0;
+    const { error } = await supabase.from('profiles').update({
+      order_count: currentCount + 1,
+      total_spent: currentSpent + orderTotal,
+      last_active: new Date().toISOString(),
+    }).eq('id', userId);
+    if (error) {
+      console.log('[Caribu] Profile stats update error:', error.message);
+    } else {
+      console.log('[Caribu] Profile stats updated — orders:', currentCount + 1, 'spent:', currentSpent + orderTotal);
+    }
+  } catch (e) {
+    console.log('[Caribu] Profile stats update failed:', e);
+  }
+}
+
+async function fetchOrderHistoryFromSupabase(userId: string): Promise<OrderSummary[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    if (error) {
+      console.log('[Caribu] Supabase order history fetch error:', error.message);
+      return null;
+    }
+    if (data && data.length > 0) {
+      return data.map((row: Record<string, unknown>) => ({
+        id: row.id as string,
+        reference: row.reference as string,
+        itemCount: (row.item_count as number) ?? 0,
+        total: Number(row.total) || 0,
+        discountApplied: Number(row.discount_applied) || 0,
+        promoCode: (row.promo_code as string) ?? null,
+        status: (row.status as string) ?? 'pending',
+        createdAt: row.created_at as string,
+      }));
+    }
+    return null;
+  } catch (e) {
+    console.log('[Caribu] Supabase order history fetch failed:', e);
+    return null;
+  }
+}
 
 function calculateUnitPrice(selection: BoxSelection) {
   const size = portionSizes.find((item) => item.id === selection.sizeId);
@@ -46,12 +144,46 @@ function getBoostPriceForItem(basePrice: number): number {
 }
 
 export const [CaribuProvider, useCaribu] = createContextHook(() => {
+  const { user, isLoggedIn } = useAuth();
+  const queryClient = useQueryClient();
   const [selection, setSelection] = useState<BoxSelection>(defaultSelection);
   const [boxStarted, setBoxStarted] = useState<boolean>(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [details, setDetails] = useState<CustomerDetails>(defaultDetails);
   const [lastOrder, setLastOrder] = useState<OrderSummary | null>(null);
   const [orderHistory, setOrderHistory] = useState<OrderSummary[]>([]);
+
+  const orderHistoryQuery = useQuery({
+    queryKey: ['order-history', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      console.log('[Caribu] Loading order history for user:', user.id);
+      const supabaseOrders = await fetchOrderHistoryFromSupabase(user.id);
+      if (supabaseOrders && supabaseOrders.length > 0) {
+        console.log('[Caribu] Loaded', supabaseOrders.length, 'orders from Supabase');
+        await AsyncStorage.setItem(`${ORDER_HISTORY_KEY}_${user.id}`, JSON.stringify(supabaseOrders));
+        return supabaseOrders;
+      }
+      const stored = await AsyncStorage.getItem(`${ORDER_HISTORY_KEY}_${user.id}`);
+      if (stored) {
+        return JSON.parse(stored) as OrderSummary[];
+      }
+      return [] as OrderSummary[];
+    },
+    enabled: isLoggedIn,
+  });
+
+  useEffect(() => {
+    if (orderHistoryQuery.data) {
+      setOrderHistory(orderHistoryQuery.data);
+    }
+  }, [orderHistoryQuery.data]);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setOrderHistory([]);
+    }
+  }, [isLoggedIn]);
 
   const size = useMemo(() => portionSizes.find((item) => item.id === selection.sizeId) ?? portionSizes[0], [selection.sizeId]);
   const starter = useMemo(
@@ -146,13 +278,19 @@ export const [CaribuProvider, useCaribu] = createContextHook(() => {
     setDetails(nextDetails);
   }, []);
 
-  const submitOrder = useCallback(() => {
+  const submitOrder = useCallback((discountApplied?: number, promoCode?: string | null) => {
     const reference = `CAR-${Math.floor(Date.now() % 1000000).toString().padStart(6, '0')}`;
+    const orderId = `order_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const finalTotal = discountApplied ? Math.max(0, cartTotal - discountApplied) : cartTotal;
     const summary: OrderSummary = {
+      id: orderId,
       reference,
       itemCount: cartCount,
-      total: cartTotal,
-      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      total: finalTotal,
+      discountApplied: discountApplied ?? 0,
+      promoCode: promoCode ?? null,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
     };
 
     console.log('[Caribu] Submitting order', summary);
@@ -160,7 +298,26 @@ export const [CaribuProvider, useCaribu] = createContextHook(() => {
     setLastOrder(summary);
     setOrderHistory((current) => [summary, ...current]);
     setCart([]);
-  }, [cartCount, cartTotal]);
+
+    if (user) {
+      void syncOrderToSupabase(
+        summary,
+        user.id,
+        user.name,
+        user.email,
+        discountApplied ?? 0,
+        promoCode ?? null,
+      );
+      void updateProfileStatsInSupabase(user.id, finalTotal);
+      void AsyncStorage.setItem(
+        `${ORDER_HISTORY_KEY}_${user.id}`,
+        JSON.stringify([summary, ...orderHistory]),
+      );
+      queryClient.invalidateQueries({ queryKey: ['order-history', user.id] });
+      queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    }
+  }, [cartCount, cartTotal, user, orderHistory, queryClient]);
 
   const boostSurcharge = BOOST_SURCHARGE;
 
