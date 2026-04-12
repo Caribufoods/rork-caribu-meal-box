@@ -10,6 +10,11 @@
       "name": "Caribu",
       "path": "expo",
       "framework": "react-native"
+    },
+    {
+      "name": "Caribu",
+      "path": "expo",
+      "framework": "react-native"
     }
   ]
 }
