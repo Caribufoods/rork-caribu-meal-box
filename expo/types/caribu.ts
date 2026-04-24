@@ -33,7 +33,7 @@ export interface MenuItem {
 }
 
 export interface BoxSelection {
-  sizeId: PortionSize['id'];
+  sizeId: PortionSize['id'] | '';
   starterId?: string;
   mainId: string;
   sideId: string;

@@ -14,10 +14,10 @@ const mains = menuItems.filter((item) => item.category === 'mains');
 const sides = menuItems.filter((item) => item.category === 'sides');
 
 const defaultSelection: BoxSelection = {
-  sizeId: 'medium',
-  starterId: starters[0]?.id,
-  mainId: mains[0]?.id ?? '',
-  sideId: sides[0]?.id ?? '',
+  sizeId: '',
+  starterId: undefined,
+  mainId: '',
+  sideId: '',
   omitStarter: false,
   boostTarget: 'main',
 };
@@ -212,7 +212,7 @@ export const [CaribuProvider, useCaribu] = createContextHook(() => {
     });
   }, []);
 
-  const chooseSize = useCallback((sizeId: BoxSelection['sizeId']) => {
+  const chooseSize = useCallback((sizeId: Exclude<BoxSelection['sizeId'], ''>) => {
     console.log('[Caribu] Choosing portion size', { sizeId });
     void Haptics.selectionAsync();
     setBoxStarted(true);
@@ -222,10 +222,10 @@ export const [CaribuProvider, useCaribu] = createContextHook(() => {
   const setStarterOmission = useCallback((omitStarter: boolean) => {
     console.log('[Caribu] Updating omit starter', { omitStarter });
     void Haptics.selectionAsync();
+    setBoxStarted(true);
     setSelection((current) => ({
       ...current,
       omitStarter,
-      starterId: omitStarter ? current.starterId : current.starterId ?? starters[0]?.id,
     }));
   }, []);
 
@@ -235,7 +235,19 @@ export const [CaribuProvider, useCaribu] = createContextHook(() => {
     setSelection((current) => ({ ...current, boostTarget }));
   }, []);
 
+  const isSelectionComplete = useMemo(() => {
+    if (!selection.sizeId) return false;
+    if (!selection.mainId) return false;
+    if (!selection.sideId) return false;
+    if (!selection.omitStarter && !selection.starterId) return false;
+    return true;
+  }, [selection]);
+
   const addCurrentBoxToCart = useCallback(() => {
+    if (!isSelectionComplete) {
+      console.log('[Caribu] Cannot add incomplete box to cart', selection);
+      return false;
+    }
     const nextItem: CartItem = {
       id: `${Date.now()}`,
       selection,
@@ -246,7 +258,10 @@ export const [CaribuProvider, useCaribu] = createContextHook(() => {
     console.log('[Caribu] Adding box to cart', nextItem);
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setCart((current) => [nextItem, ...current]);
-  }, [currentUnitPrice, selection]);
+    setSelection(defaultSelection);
+    setBoxStarted(false);
+    return true;
+  }, [currentUnitPrice, selection, isSelectionComplete]);
 
   const updateQuantity = useCallback((itemId: string, delta: number) => {
     console.log('[Caribu] Updating cart quantity', { itemId, delta });
@@ -327,6 +342,7 @@ export const [CaribuProvider, useCaribu] = createContextHook(() => {
       portionSizes,
       selection,
       boxStarted,
+      isSelectionComplete,
       size,
       starter,
       main,
@@ -354,6 +370,7 @@ export const [CaribuProvider, useCaribu] = createContextHook(() => {
       addCurrentBoxToCart,
       boostSurcharge,
       boxStarted,
+      isSelectionComplete,
       cart,
       cartCount,
       cartTotal,

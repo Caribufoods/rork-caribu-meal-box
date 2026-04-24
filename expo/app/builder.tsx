@@ -158,6 +158,7 @@ export default function BuilderScreen() {
     chooseBoostTarget,
     addCurrentBoxToCart,
     cartCount,
+    isSelectionComplete,
   } = useCaribu();
 
   const [detailItem, setDetailItem] = useState<MenuItem | null>(null);
@@ -171,10 +172,14 @@ export default function BuilderScreen() {
   }, [menuItems]);
 
   const handleAddToCart = useCallback(() => {
+    if (!isSelectionComplete) {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      return;
+    }
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     addCurrentBoxToCart();
     router.push('/cart');
-  }, [addCurrentBoxToCart, router]);
+  }, [addCurrentBoxToCart, router, isSelectionComplete]);
 
   const handleSizeSelect = useCallback((sizeId: 'medium' | 'large') => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -394,7 +399,9 @@ export default function BuilderScreen() {
         <View style={styles.footerInfo}>
           <Text style={styles.footerPrice}>£{currentUnitPrice.toFixed(2)}</Text>
           <Text style={styles.footerMeta}>
-            {size?.name} · {size?.grams}g · {size?.calories} kcal
+            {selection.sizeId && size
+              ? `${size.name} · ${size.grams}g · ${size.calories} kcal`
+              : 'Pick a portion size to begin'}
           </Text>
           <Text style={styles.footerItems}>
             {(selection.omitStarter ? 'No starter' : starter?.name) ?? 'Starter'} · {main?.name ?? 'Main'} · {side?.name ?? 'Side'}
@@ -404,13 +411,18 @@ export default function BuilderScreen() {
           onPress={handleAddToCart}
           onPressIn={handleFooterPressIn}
           onPressOut={handleFooterPressOut}
-          style={styles.addButton}
+          style={[styles.addButton, !isSelectionComplete && styles.addButtonDisabled]}
+          disabled={!isSelectionComplete}
           testID="builder-add-to-cart-button"
         >
-          <Text style={styles.addButtonText}>Add to Cart</Text>
-          <View style={styles.addButtonBadge}>
-            <Text style={styles.addButtonBadgeText}>{cartCount + 1}</Text>
-          </View>
+          <Text style={styles.addButtonText}>
+            {isSelectionComplete ? 'Add to Cart' : 'Build your box'}
+          </Text>
+          {isSelectionComplete ? (
+            <View style={styles.addButtonBadge}>
+              <Text style={styles.addButtonBadgeText}>{cartCount + 1}</Text>
+            </View>
+          ) : null}
           <ChevronRight color={caribuTheme.white} size={16} />
         </Pressable>
       </Animated.View>
@@ -794,5 +806,8 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.88,
     transform: [{ scale: 0.985 }],
+  },
+  addButtonDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
 });
