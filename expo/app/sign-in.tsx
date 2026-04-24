@@ -42,7 +42,7 @@ export default function SignInScreen() {
     try {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       await signIn({ email: email.trim(), password });
-      router.back();
+      router.replace('/home');
     } catch (error) {
       console.log('[Auth] Sign in error:', error);
       Alert.alert('Sign in failed', 'Please check your credentials and try again.');
@@ -53,7 +53,7 @@ export default function SignInScreen() {
     try {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       await socialSignIn(provider);
-      router.back();
+      router.replace('/home');
     } catch (error) {
       console.log('[Auth] Social sign in error:', error);
       Alert.alert('Sign in failed', 'Something went wrong. Please try again.');

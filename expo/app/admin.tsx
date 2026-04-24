@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  KeyboardAvoidingView,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -268,7 +269,19 @@ export default function AdminScreen() {
             <Text style={styles.headerTitle}>Admin Dashboard</Text>
             <View style={{ width: 40 }} />
           </View>
-          <AdminLoginGate onAuthenticate={authenticateAdmin} />
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+          >
+            <ScrollView
+              contentContainerStyle={{ flexGrow: 1 }}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <AdminLoginGate onAuthenticate={authenticateAdmin} />
+            </ScrollView>
+          </KeyboardAvoidingView>
         </SafeAreaView>
       </View>
     );
