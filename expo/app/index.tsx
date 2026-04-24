@@ -15,7 +15,7 @@ import * as Haptics from 'expo-haptics';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const logoImage = 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/8vpd7aucvwric7vv5ajx7';
-const bgImage = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1400&q=80';
+const bgImage = 'https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&w=1400&q=80';
 
 const GOLD = '#C9A96E';
 const GOLD_LIGHT = 'rgba(201,169,110,0.15)';
