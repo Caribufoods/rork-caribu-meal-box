@@ -122,6 +122,17 @@ async function markUserDeletedInSupabase(userId: string): Promise<void> {
   }
 }
 
+async function wipeSupabaseData(keepUserId: string): Promise<void> {
+  try {
+    const { error: ordersErr } = await supabase.from('orders').delete().neq('id', '__keep__');
+    if (ordersErr) console.log('[Admin] Supabase orders wipe error:', ordersErr.message);
+    const { error: profilesErr } = await supabase.from('profiles').delete().neq('id', keepUserId);
+    if (profilesErr) console.log('[Admin] Supabase profiles wipe error:', profilesErr.message);
+  } catch (e) {
+    console.log('[Admin] Supabase wipe failed:', e);
+  }
+}
+
 export const [AdminProvider, useAdmin] = createContextHook(() => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -270,6 +281,59 @@ export const [AdminProvider, useAdmin] = createContextHook(() => {
     },
   });
 
+  const resetDataMutation = useMutation({
+    mutationFn: async () => {
+      console.log('[Admin] Resetting all dashboard data');
+      if (!user) return { users: [] as AdminUser[], orders: [] as AdminOrder[] };
+      await wipeSupabaseData(user.id);
+      const me: AdminUser = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        provider: user.provider,
+        referralCode: user.referralCode,
+        createdAt: user.createdAt,
+        status: 'active',
+        orderCount: 0,
+        totalSpent: 0,
+        lastActive: new Date().toISOString(),
+      };
+      await AsyncStorage.setItem(ADMIN_USERS_KEY, JSON.stringify([me]));
+      await AsyncStorage.setItem(ADMIN_ORDERS_KEY, JSON.stringify([]));
+      try {
+        await supabase.from('profiles').upsert({
+          id: me.id,
+          name: me.name,
+          email: me.email,
+          provider: me.provider,
+          referral_code: me.referralCode,
+          created_at: me.createdAt,
+          status: 'active',
+          order_count: 0,
+          total_spent: 0,
+          last_active: me.lastActive,
+        }, { onConflict: 'id' });
+      } catch (e) {
+        console.log('[Admin] Re-upsert admin profile failed:', e);
+      }
+      return { users: [me], orders: [] as AdminOrder[] };
+    },
+    onSuccess: ({ users: u, orders: o }) => {
+      setUsers(u);
+      setOrders(o);
+      queryClient.setQueryData(['admin-users'], u);
+      queryClient.setQueryData(['admin-orders'], o);
+      void queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+    },
+  });
+
+  const refreshData = useCallback(async () => {
+    console.log('[Admin] Refreshing data from Supabase');
+    await queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    await queryClient.invalidateQueries({ queryKey: ['admin-orders'] });
+  }, [queryClient]);
+
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
       console.log('[Admin] Marking user as deleted:', userId);
@@ -350,6 +414,9 @@ export const [AdminProvider, useAdmin] = createContextHook(() => {
       updateOrderStatus: updateOrderStatusMutation.mutateAsync,
       deleteUser: deleteUserMutation.mutateAsync,
       exportData,
+      resetData: resetDataMutation.mutateAsync,
+      refreshData,
+      isResetting: resetDataMutation.isPending,
       isLoading: usersQuery.isLoading || ordersQuery.isLoading,
     }),
     [
@@ -365,6 +432,9 @@ export const [AdminProvider, useAdmin] = createContextHook(() => {
       updateOrderStatusMutation.mutateAsync,
       deleteUserMutation.mutateAsync,
       exportData,
+      resetDataMutation.mutateAsync,
+      resetDataMutation.isPending,
+      refreshData,
       usersQuery.isLoading,
       ordersQuery.isLoading,
     ],

@@ -32,6 +32,7 @@ import {
   BarChart3,
   UserCheck,
   Gift,
+  RefreshCw,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
@@ -160,6 +161,9 @@ export default function AdminScreen() {
     updateOrderStatus,
     deleteUser,
     exportData,
+    resetData,
+    refreshData,
+    isResetting,
     isLoading,
   } = useAdmin();
 
@@ -234,6 +238,36 @@ export default function AdminScreen() {
     },
     [deleteUser],
   );
+
+  const handleResetData = useCallback(() => {
+    Alert.alert(
+      'Reset Dashboard Data',
+      'This will permanently delete all users and orders except your admin account from both Supabase and local storage. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            try {
+              await resetData();
+              void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert('Done', 'Dashboard has been reset. You are now the only user.');
+            } catch (e) {
+              console.log('[Admin] Reset failed', e);
+              Alert.alert('Error', 'Could not reset data. Please try again.');
+            }
+          },
+        },
+      ],
+    );
+  }, [resetData]);
+
+  const handleRefresh = useCallback(async () => {
+    void Haptics.selectionAsync();
+    await refreshData();
+  }, [refreshData]);
 
   const handleUpdateOrderStatus = useCallback(
     (orderId: string, status: AdminOrder['status']) => {
@@ -387,6 +421,35 @@ export default function AdminScreen() {
                 >
                   <Download color={caribuTheme.white} size={18} />
                   <Text style={styles.exportBtnText}>Export All Data</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={handleRefresh}
+                  style={({ pressed }) => [styles.refreshBtn, pressed && styles.pressed]}
+                  testID="admin-refresh"
+                >
+                  <RefreshCw color={caribuTheme.ink} size={16} />
+                  <Text style={styles.refreshBtnText}>Refresh from Supabase</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={handleResetData}
+                  disabled={isResetting}
+                  style={({ pressed }) => [
+                    styles.resetBtn,
+                    pressed && styles.pressed,
+                    isResetting && { opacity: 0.6 },
+                  ]}
+                  testID="admin-reset"
+                >
+                  {isResetting ? (
+                    <ActivityIndicator size="small" color={caribuTheme.error} />
+                  ) : (
+                    <Trash2 color={caribuTheme.error} size={16} />
+                  )}
+                  <Text style={styles.resetBtnText}>
+                    {isResetting ? 'Resetting...' : 'Reset Dashboard Data'}
+                  </Text>
                 </Pressable>
               </View>
             )}
