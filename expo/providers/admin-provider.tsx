@@ -10,7 +10,11 @@ import type { AdminUser, AdminOrder, AdminStats } from '@/types/admin';
 const ADMIN_USERS_KEY = 'caribu_admin_users';
 const ADMIN_ORDERS_KEY = 'caribu_admin_orders';
 const ADMIN_PIN = '1234';
-const ADMIN_EMAIL = 'laneworth.kinuthia@outlook.com';
+const ADMIN_EMAILS = [
+  'laneworth.kinuthia@outlook.com',
+  'help@caribufoods.co.uk',
+  'admin@caribufoods.co.uk',
+] as const;
 
 async function fetchUsersFromSupabase(): Promise<AdminUser[] | null> {
   try {
@@ -212,7 +216,8 @@ export const [AdminProvider, useAdmin] = createContextHook(() => {
   }, [user?.id]);
 
   const isAdminEmail = useMemo(() => {
-    return user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    const normalizedEmail = user?.email?.trim().toLowerCase();
+    return normalizedEmail ? ADMIN_EMAILS.includes(normalizedEmail as typeof ADMIN_EMAILS[number]) : false;
   }, [user?.email]);
 
   const authenticateAdmin = useCallback((pin: string): boolean => {
