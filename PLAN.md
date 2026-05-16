@@ -7,6 +7,7 @@
   - [x] Omit the starter and swap that value into a larger main or side portion.
   - [x] Add customized boxes to a cart and review a clean checkout-style summary.
   - [x] Enter delivery or pickup details before confirming the order.
+  - [x] Allow admins to switch delivery availability on or off from the dashboard.
   - [x] Show a final order screen with a scannable QR code for the business to process.
 - **Design**
   - [x] Earthy premium visual style with warm food-led surfaces, soft textures, and an elegant mobile feel.

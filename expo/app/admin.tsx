@@ -33,11 +33,13 @@ import {
   UserCheck,
   Gift,
   RefreshCw,
+  Truck,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { caribuTheme } from '@/constants/caribu-theme';
 import { useAdmin } from '@/providers/admin-provider';
+import { useCaribu } from '@/providers/caribu-provider';
 import type { AdminOrder } from '@/types/admin';
 
 type AdminTab = 'overview' | 'users' | 'orders' | 'promos';
@@ -166,6 +168,7 @@ export default function AdminScreen() {
     isResetting,
     isLoading,
   } = useAdmin();
+  const { isDeliveryAvailable, setDeliveryAvailability } = useCaribu();
 
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [userSearch, setUserSearch] = useState<string>('');
@@ -276,6 +279,26 @@ export default function AdminScreen() {
     },
     [updateOrderStatus],
   );
+
+  const handleToggleDelivery = useCallback(() => {
+    const nextAvailability = !isDeliveryAvailable;
+    Alert.alert(
+      nextAvailability ? 'Switch delivery on?' : 'Switch delivery off?',
+      nextAvailability
+        ? 'Customers will be able to choose delivery at checkout again.'
+        : 'Customers will only be able to choose pickup until you switch delivery back on.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: nextAvailability ? 'Switch On' : 'Switch Off',
+          style: nextAvailability ? 'default' : 'destructive',
+          onPress: () => {
+            void setDeliveryAvailability(nextAvailability);
+          },
+        },
+      ],
+    );
+  }, [isDeliveryAvailable, setDeliveryAvailability]);
 
   const tabs: { id: AdminTab; label: string; icon: React.ReactNode }[] = [
     { id: 'overview', label: 'Overview', icon: <BarChart3 color={activeTab === 'overview' ? caribuTheme.white : caribuTheme.muted} size={16} /> },
@@ -412,6 +435,40 @@ export default function AdminScreen() {
                     value={stats.promoRedemptions.toString()}
                     color="#EC4899"
                   />
+                </View>
+
+                <View style={[styles.availabilityCard, !isDeliveryAvailable && styles.availabilityCardOff]}>
+                  <View style={styles.availabilityTopRow}>
+                    <View style={[styles.availabilityIcon, { backgroundColor: isDeliveryAvailable ? '#F0FDF4' : '#FEF2F2' }]}>
+                      <Truck color={isDeliveryAvailable ? caribuTheme.forest : caribuTheme.error} size={20} />
+                    </View>
+                    <View style={styles.availabilityCopy}>
+                      <Text style={styles.availabilityTitle}>Delivery option</Text>
+                      <Text style={styles.availabilitySubtitle}>
+                        {isDeliveryAvailable
+                          ? 'Delivery is currently visible at checkout.'
+                          : 'Delivery is currently hidden. Customers can only choose pickup.'}
+                      </Text>
+                    </View>
+                    <View style={[styles.availabilityPill, isDeliveryAvailable ? styles.availabilityPillOn : styles.availabilityPillOff]}>
+                      <Text style={[styles.availabilityPillText, { color: isDeliveryAvailable ? caribuTheme.forest : caribuTheme.error }]}>
+                        {isDeliveryAvailable ? 'On' : 'Off'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Pressable
+                    onPress={handleToggleDelivery}
+                    style={({ pressed }) => [
+                      styles.availabilityToggle,
+                      !isDeliveryAvailable && styles.availabilityToggleOff,
+                      pressed && styles.pressed,
+                    ]}
+                    testID="admin-toggle-delivery"
+                  >
+                    <Text style={styles.availabilityToggleText}>
+                      {isDeliveryAvailable ? 'Switch delivery off' : 'Switch delivery on'}
+                    </Text>
+                  </Pressable>
                 </View>
 
                 <Pressable
@@ -964,6 +1021,75 @@ const styles = StyleSheet.create({
   section: {
     paddingHorizontal: 20,
     gap: 14,
+  },
+  availabilityCard: {
+    backgroundColor: caribuTheme.surface,
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: caribuTheme.line,
+    gap: 14,
+  },
+  availabilityCardOff: {
+    borderColor: '#F2C6C1',
+    backgroundColor: '#FFFBFA',
+  },
+  availabilityTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  availabilityIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  availabilityCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  availabilityTitle: {
+    color: caribuTheme.ink,
+    fontSize: 16,
+    fontWeight: '800' as const,
+  },
+  availabilitySubtitle: {
+    color: caribuTheme.muted,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  availabilityPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  availabilityPillOn: {
+    backgroundColor: '#F0FDF4',
+  },
+  availabilityPillOff: {
+    backgroundColor: '#FEF2F2',
+  },
+  availabilityPillText: {
+    fontSize: 11,
+    fontWeight: '800' as const,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.7,
+  },
+  availabilityToggle: {
+    backgroundColor: caribuTheme.charcoal,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  availabilityToggleOff: {
+    backgroundColor: caribuTheme.forest,
+  },
+  availabilityToggleText: {
+    color: caribuTheme.white,
+    fontSize: 14,
+    fontWeight: '800' as const,
   },
   exportBtn: {
     flexDirection: 'row',

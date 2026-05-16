@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MapPin, Truck } from 'lucide-react-native';
@@ -12,16 +12,32 @@ import type { CustomerDetails } from '@/types/caribu';
 
 export default function DetailsScreen() {
   const router = useRouter();
-  const { cart, cartTotal, details, updateDetails, submitOrder } = useCaribu();
+  const { cart, cartTotal, details, isDeliveryAvailable, updateDetails, submitOrder } = useCaribu();
   const { isLoggedIn, user } = useAuth();
   const { selectedPromotion, markPromoUsed } = usePromotions();
-  const [form, setForm] = useState<CustomerDetails>(details);
+  const initialDetails = !isDeliveryAvailable && details.fulfilment === 'delivery'
+    ? { ...details, fulfilment: 'pickup' as const }
+    : details;
+  const [form, setForm] = useState<CustomerDetails>(initialDetails);
 
   const addressRequired = useMemo(() => form.fulfilment === 'delivery', [form.fulfilment]);
 
+  useEffect(() => {
+    if (!isDeliveryAvailable && form.fulfilment === 'delivery') {
+      setForm((current) => ({ ...current, fulfilment: 'pickup' }));
+    }
+  }, [form.fulfilment, isDeliveryAvailable]);
+
   const handleContinue = () => {
+    if (!isDeliveryAvailable && form.fulfilment === 'delivery') {
+      Alert.alert('Delivery unavailable', 'Delivery is currently switched off. Please choose pickup to place your order.');
+      return;
+    }
+
     if (!form.name.trim() || !form.phone.trim() || (addressRequired && !form.address.trim())) {
-      Alert.alert('Missing details', 'Please add your name, phone number, and address for delivery orders.');
+      Alert.alert('Missing details', addressRequired
+        ? 'Please add your name, phone number, and address for delivery orders.'
+        : 'Please add your name and phone number for pickup orders.');
       return;
     }
 
@@ -61,15 +77,25 @@ export default function DetailsScreen() {
             { key: 'pickup' as const, icon: MapPin, label: 'Pickup' },
           ]).map(({ key, icon: Icon, label }) => {
             const active = form.fulfilment === key;
+            const disabled = key === 'delivery' && !isDeliveryAvailable;
             return (
               <Pressable
                 key={key}
-                onPress={() => handleChange('fulfilment', key)}
-                style={[styles.segment, active && styles.segmentActive]}
+                onPress={() => {
+                  if (disabled) {
+                    Alert.alert('Delivery unavailable', 'Delivery is currently switched off by the Caribu team. Please choose pickup.');
+                    return;
+                  }
+                  handleChange('fulfilment', key);
+                }}
+                style={[styles.segment, active && styles.segmentActive, disabled && styles.segmentDisabled]}
                 testID={`fulfilment-${key}`}
               >
-                <Icon color={active ? caribuTheme.white : caribuTheme.muted} size={18} />
-                <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{label}</Text>
+                <Icon color={active ? caribuTheme.white : disabled ? '#B9B4A8' : caribuTheme.muted} size={18} />
+                <View style={styles.segmentLabelWrap}>
+                  <Text style={[styles.segmentText, active && styles.segmentTextActive, disabled && styles.segmentTextDisabled]}>{label}</Text>
+                  {disabled && <Text style={styles.segmentUnavailable}>Unavailable</Text>}
+                </View>
               </Pressable>
             );
           })}
@@ -173,6 +199,15 @@ const styles = StyleSheet.create({
     backgroundColor: caribuTheme.charcoal,
     borderColor: caribuTheme.charcoal,
   },
+  segmentDisabled: {
+    backgroundColor: caribuTheme.card,
+    borderColor: caribuTheme.line,
+    opacity: 0.72,
+  },
+  segmentLabelWrap: {
+    alignItems: 'center',
+    gap: 1,
+  },
   segmentText: {
     color: caribuTheme.muted,
     fontSize: 15,
@@ -180,6 +215,16 @@ const styles = StyleSheet.create({
   },
   segmentTextActive: {
     color: caribuTheme.white,
+  },
+  segmentTextDisabled: {
+    color: '#B9B4A8',
+  },
+  segmentUnavailable: {
+    color: caribuTheme.error,
+    fontSize: 9,
+    fontWeight: '800' as const,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
   },
   formCard: {
     backgroundColor: caribuTheme.surface,

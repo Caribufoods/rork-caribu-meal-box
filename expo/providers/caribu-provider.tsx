@@ -32,6 +32,7 @@ const defaultDetails: CustomerDetails = {
 
 const BOOST_SURCHARGE = 2.5;
 const ORDER_HISTORY_KEY = 'caribu_order_history';
+const DELIVERY_AVAILABLE_KEY = 'caribu_delivery_available';
 
 async function syncOrderToSupabase(
   order: OrderSummary,
@@ -152,6 +153,7 @@ export const [CaribuProvider, useCaribu] = createContextHook(() => {
   const [details, setDetails] = useState<CustomerDetails>(defaultDetails);
   const [lastOrder, setLastOrder] = useState<OrderSummary | null>(null);
   const [orderHistory, setOrderHistory] = useState<OrderSummary[]>([]);
+  const [isDeliveryAvailable, setIsDeliveryAvailable] = useState<boolean>(true);
 
   const orderHistoryQuery = useQuery({
     queryKey: ['order-history', user?.id],
@@ -184,6 +186,22 @@ export const [CaribuProvider, useCaribu] = createContextHook(() => {
       setOrderHistory([]);
     }
   }, [isLoggedIn]);
+
+  useEffect(() => {
+    void AsyncStorage.getItem(DELIVERY_AVAILABLE_KEY)
+      .then((stored) => {
+        if (stored !== null) {
+          setIsDeliveryAvailable(stored === 'true');
+        }
+      })
+      .catch(() => console.log('[Caribu] Failed to load delivery availability'));
+  }, []);
+
+  useEffect(() => {
+    if (!isDeliveryAvailable && details.fulfilment === 'delivery') {
+      setDetails((current) => ({ ...current, fulfilment: 'pickup' }));
+    }
+  }, [details.fulfilment, isDeliveryAvailable]);
 
   const size = useMemo(() => portionSizes.find((item) => item.id === selection.sizeId) ?? portionSizes[0], [selection.sizeId]);
   const starter = useMemo(
@@ -289,8 +307,21 @@ export const [CaribuProvider, useCaribu] = createContextHook(() => {
   }, []);
 
   const updateDetails = useCallback((nextDetails: CustomerDetails) => {
-    console.log('[Caribu] Updating customer details', { fulfilment: nextDetails.fulfilment, name: nextDetails.name });
-    setDetails(nextDetails);
+    const safeDetails = !isDeliveryAvailable && nextDetails.fulfilment === 'delivery'
+      ? { ...nextDetails, fulfilment: 'pickup' as const }
+      : nextDetails;
+    console.log('[Caribu] Updating customer details', { fulfilment: safeDetails.fulfilment, name: safeDetails.name });
+    setDetails(safeDetails);
+  }, [isDeliveryAvailable]);
+
+  const setDeliveryAvailability = useCallback(async (available: boolean) => {
+    console.log('[Caribu] Setting delivery availability', { available });
+    void Haptics.selectionAsync();
+    setIsDeliveryAvailable(available);
+    await AsyncStorage.setItem(DELIVERY_AVAILABLE_KEY, String(available));
+    if (!available) {
+      setDetails((current) => ({ ...current, fulfilment: 'pickup' }));
+    }
   }, []);
 
   const submitOrder = useCallback((discountApplied?: number, promoCode?: string | null) => {
@@ -354,6 +385,7 @@ export const [CaribuProvider, useCaribu] = createContextHook(() => {
       cartCount,
       cartTotal,
       details,
+      isDeliveryAvailable,
       lastOrder,
       orderHistory,
       selectItem,
@@ -364,6 +396,7 @@ export const [CaribuProvider, useCaribu] = createContextHook(() => {
       updateQuantity,
       removeItem,
       updateDetails,
+      setDeliveryAvailability,
       submitOrder,
     }),
     [
@@ -378,6 +411,7 @@ export const [CaribuProvider, useCaribu] = createContextHook(() => {
       chooseSize,
       currentUnitPrice,
       details,
+      isDeliveryAvailable,
       lastOrder,
       orderHistory,
       main,
@@ -388,6 +422,7 @@ export const [CaribuProvider, useCaribu] = createContextHook(() => {
       side,
       size,
       starter,
+      setDeliveryAvailability,
       submitOrder,
       updateDetails,
       updateQuantity,
